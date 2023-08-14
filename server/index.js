@@ -6,7 +6,7 @@ const app=express();
 
 //<--------- middlewares ---------->
 
-dotenv.config({ path: './config.env' });
+dotenv.config();
 app.use(cookieParser());
 app.options("*",cors())
 require('./db/conn');

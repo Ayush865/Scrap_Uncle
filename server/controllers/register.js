@@ -23,7 +23,6 @@ module.exports.register = async(req, res)=>{
   
     const emailExists = await Registration.exists({email:email});
     if(emailExists){
-
       res.status(403).json({err:"Email already exists"});
     }else{
 

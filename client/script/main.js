@@ -157,9 +157,6 @@ async function sort(event){
 }
 
 function uploadMl(event){
-  
-  
-
   event.preventDefault();
   let image = fileupload.files[0];
   formData = new FormData();
