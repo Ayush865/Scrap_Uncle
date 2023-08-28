@@ -8,8 +8,10 @@ const organic_count = document.getElementById("organic-item-count");
 const recyclable_count = document.getElementById("recyclable-item-count");
 const electronic_count = document.getElementById("electronic-item-count");
 const fileupload = document.getElementById("fileUpload")
-const mlFile = document.getElementById("file")
+const mlFile = document.getElementById("form-upload")
 
+let detectTrigger = false;
+let uploadURL = ""
 let formStepsNum = 0;
 let currProgress=0;
 let organicWaste=[], recyclableWaste=[], electronicWaste=[];
@@ -18,10 +20,10 @@ let itemLink = {
                 glass:"./images/glass.png", cans:"./images/cans.png",
                 bulb:"./images/bulb.png", battery:"./images/battery.png",
                 chicken:"./images/food.png", paper:"./images/paper.png",
-                upload:"./images/toothbrush.jpg",
+                file:"",
               };
 
-window.onload = isLoggedIn()    
+window.onload = isLoggedIn()
 
 function isLoggedIn(){
 let data = {token:sessionStorage.getItem("jwt_token")};
@@ -132,43 +134,49 @@ function setItemCount(organic, recyclable, electronic){
   electronic_count.setAttribute("data-title",electronic);
 }
 
-async function sort(event){
-  event.preventDefault();  
-
-  let checkedValue = document.querySelectorAll('.form-check-input');
-  recyclableWaste.push("upload");
-  checkedValue.forEach((elm)=>{
-    if(elm.checked){
-      if(elm.value=="organic"){
-        organicWaste.push(elm.name);
-      }else if(elm.value=="recyclable"){
-        recyclableWaste.push(elm.name);
-      }else{
-        electronicWaste.push(elm.name);
-      }
+function check(event){
+  console.log(detectTrigger)
+  if(detectTrigger){
+    alert("Please wait while our server detects the type!")
+  }else{
+    sort(event)
+    ++formStepsNum;
+    updateFormSteps();
+    updateProgressbar();
+    if(formStepsNum==1){
+      currProgress=0;
+      progress_bar.setAttribute("aria-valuenow", 0);
+      progress_bar.setAttribute("style", "width: "+0+'%');
+      progressInterval = window.setInterval(progressIncrease,500);
     }
-  })
-
-  setItemCount(organicWaste.length,recyclableWaste.length, electronicWaste.length);
-  
-  addItemImage();
-  console.log("organic--> "+ organicWaste+" recyclable--> "+recyclableWaste+" electronicWaste--> "+electronicWaste);
-
+    if(formStepsNum==2){
+      window.clearInterval(progressInterval);
+    }
+  }
 }
 
-function uploadMl(event){
-  event.preventDefault();
-  let image = fileupload.files[0];
-  formData = new FormData();
-  // files = fileupload.files[0]
-  formData.append("file",image)
- 
 
-    axios.post('http://127.0.0.1:5000/predict',formData).then((res)=>{
-      console.log(res)
-  }).catch((err)=>{
-    console.log(err)
-  })
+function sort(event){
+  event.preventDefault();
+    let checkedValue = document.querySelectorAll('.form-check-input');
+    checkedValue.forEach((elm)=>{
+      if(elm.checked){
+        if(elm.value=="organic"){
+          organicWaste.push(elm.name);
+        }else if(elm.value=="recyclable"){
+          recyclableWaste.push(elm.name);
+        }else{
+          electronicWaste.push(elm.name);
+        }
+      }
+    })
+  
+    setItemCount(organicWaste.length,recyclableWaste.length, electronicWaste.length);
+    
+    addItemImage();
+    console.log("organic--> "+ organicWaste+" recyclable--> "+recyclableWaste+" electronicWaste--> "+electronicWaste);
+
+
 }
 
 function addItemImage(){
@@ -238,6 +246,7 @@ function clearWasteArray(){
   organicWaste.length=0;
   recyclableWaste.length=0;
   electronicWaste.length=0;
+  deleteDetect()
 }
 
 function sendData(event){
@@ -283,5 +292,63 @@ function uploadImage(event){
   let fileName = tempName.split("\\").pop();
   let fileText = document.getElementById("file-name"); 
   let text = document.createTextNode(fileName);
-  fileText.appendChild(text);
+  let field = document.createElement('fieldset');
+  field.appendChild(text);
+  fileText.appendChild(field);
+}
+
+
+function uploadMl(event){
+  event.preventDefault();
+  console.log("here!")
+  detectTrigger=true;
+  let image = mlFile.elements['fileUpload'].files[0];
+  let uploadURL = URL.createObjectURL(image);
+  itemLink.file = uploadURL;
+  let form = new FormData();
+  form.append('file', image);
+  axios.post('http://127.0.0.1:5000/predict',form).then((res)=>{
+    console.log(res);
+    detectTrigger=false;
+    updateDetect();
+    if(res?.data?.predicted_value==="Recycle"){
+      console.log("recycle")
+      recyclableWaste.push("file")
+    }else if(res?.data?.predicted_value==="Organic"){
+      console.log("organic")
+      organicWaste.push("file")
+    }
+
+    console.log("Inside ml predict : ", res.data.predicted_value);
+    return false;
+  }).catch((err)=>{
+    console.log(err)
+    return false;
+  })
+}
+
+function updateDetect(){
+  let fileText = document.getElementById("file-name"); 
+  let child = fileText.lastElementChild;
+
+  while (child) {
+      fileText.removeChild(child);
+      child = fileText.lastElementChild;
+  }
+  let text = document.createTextNode("Detected!"); 
+  let field = document.createElement('fieldset');
+  field.appendChild(text);
+  fileText.appendChild(field);
+}
+
+
+function deleteDetect(){
+  let fileText = document.getElementById("file-name"); 
+  let child = fileText.lastElementChild;
+
+  while (child) {
+      fileText.removeChild(child);
+      child = fileText.lastElementChild;
+  }
+
 }
